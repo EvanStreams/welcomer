@@ -39,22 +39,28 @@ def main():
 
     @app.event("team_join")
     def handle_team_join(event: dict, logger: logging.Logger):
+        logger.info(f"team_join event received: {event.get('user', {}).get('id', 'unknown')}")
+        
         if not Config.BOT_ENABLED:
+            logger.info("Bot disabled, skipping")
             return
 
         user = event.get("user", {})
         user_id = user.get("id")
 
         if not user_id:
+            logger.warning("No user_id in event")
             return
 
         if user.get("is_bot"):
+            logger.info("Skipping bot user")
             return
 
-        logger.info("Processing new user join")
+        logger.info(f"Processing new user join: {user_id}")
 
         try:
-            channel_manager.add_user_to_welcome_channel(user_id)
+            result = channel_manager.add_user_to_welcome_channel(user_id)
+            logger.info(f"add_user_to_welcome_channel result: {result}")
         except Exception:
             logger.exception("Error processing team_join")
 
@@ -211,11 +217,13 @@ def main():
 
     @app.event("user_change")
     def handle_user_change(event: dict, logger: logging.Logger):
-        if not Config.BOT_ENABLED:
-            return
-
         user = event.get("user", {})
         user_id = user.get("id")
+        
+        logger.info(f"user_change event: {user_id}, restricted={user.get('is_restricted')}, ultra={user.get('is_ultra_restricted')}")
+        
+        if not Config.BOT_ENABLED:
+            return
 
         if not user_id:
             return
@@ -224,7 +232,9 @@ def main():
         is_ultra_restricted = user.get("is_ultra_restricted", False)
 
         if not is_restricted and not is_ultra_restricted:
-            if state_backend.is_pending_guest(user_id):
+            is_pending = state_backend.is_pending_guest(user_id)
+            logger.info(f"User {user_id} is_pending_guest: {is_pending}")
+            if is_pending:
                 logger.info(f"Guest {user_id} promoted to full member")
                 try:
                     channel_manager.process_promoted_guest(user_id)
