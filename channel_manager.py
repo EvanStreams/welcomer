@@ -116,7 +116,6 @@ class ChannelManager:
             state.current_channel_id = channel_id
             state.current_count = 0
             self.state.save_state(state)
-            self._post_welcome_message(channel_id)
             self._add_default_members(channel_id)
             logger.info(f"Created new channel: {channel_name}")
 
@@ -242,8 +241,9 @@ class ChannelManager:
 
     def _send_user_welcome(self, channel_id: str, user_id: str) -> None:
         try:
-            self.client.chat_postMessage(
+            self.client.chat_postEphemeral(
                 channel=channel_id,
+                user=user_id,
                 text=f"<@{user_id}> {Config.WELCOME_MESSAGE}",
             )
             logger.info(f"Sent welcome message to {user_id}")
@@ -276,20 +276,4 @@ class ChannelManager:
             except SlackApiError as e:
                 logger.warning(f"Failed to get group {group_id} members: {e.response['error']}")
 
-    def _post_welcome_message(self, channel_id: str) -> None:
-        try:
-            response = self.client.chat_postEphemeral(
-                channel=channel_id,
-                text=Config.WELCOME_MESSAGE,
-                unfurl_links=False,
-                
-            )
 
-            if Config.PIN_WELCOME_MESSAGE and response.get("ts"):
-                try:
-                    self.client.pins_add(channel=channel_id, timestamp=response["ts"])
-                except SlackApiError as e:
-                    logger.warning(f"Failed to pin message: {e.response['error']}")
-
-        except SlackApiError as e:
-            logger.error(f"Failed to post welcome message: {e.response['error']}")
